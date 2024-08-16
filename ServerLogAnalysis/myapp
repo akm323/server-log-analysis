@@ -1,0 +1,30 @@
+from flask import Flask, render_template
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+app = Flask(__name__)
+
+# Load data
+df = pd.read_csv('data.csv')
+
+# Create visualizations
+fig1 = plt.figure(figsize=(10, 6))
+sns.barplot(x='IP Address', y='Frequency', data=df)
+plt.title('Top 10 Most Frequent IP Addresses')
+plt.xlabel('IP Address')
+plt.ylabel('Frequency')
+
+fig2 = plt.figure(figsize=(10, 6))
+sns.lineplot(x='Timestamp', y='Number of Requests', data=df)
+plt.title('Requests Over Time')
+plt.xlabel('Time')
+plt.ylabel('Number of Requests')
+
+# Render visualizations
+@app.route('/')
+def index():
+    return render_template('index.html', fig1=fig1, fig2=fig2)
+
+if __name__ == '__main__':
+    app.run(debug=True)
