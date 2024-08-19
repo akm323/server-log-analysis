@@ -32,18 +32,31 @@ def sessionization_and_behavior_analysis(file_dir, session_duration_minutes=30):
             else:
                 sessions.append(current_session)
                 current_session = [row]
+    if current_session:
+        sessions.append(current_session)
+
+    # Initialize the output string
+    output_string = ""
 
     # Analyze user behavior within each session
     for session in sessions:
-        print(f"Session for IP {session[0]['IP Address']}:")
+        output_string += f"Session for IP {session[0]['IP Address']}:\n"
         session_start = session[0]['Timestamp']
         session_end = session[-1]['Timestamp']
         session_duration = session_end - session_start
-        print(f"Session duration: {session_duration}")
-        print("Page sequence:")
+        output_string += f"Session duration: {session_duration}\n"
+        output_string += "Page sequence:\n"
         for request in session:
-            print(f"- {request['Request Path']}")
-        print("")
+            output_string += f"- {request['Request Path']}\n"
+        output_string += "\n"
+
+    # Print summary statistics
+    print(output_string)
+
+    # Save summary statistics to a text file
+    output_path = 'D:/Sem 9/Final Project/server-log-analysis-main/ServerLogAnalysis/data/processed/session_behavior_analysis.txt'
+    with open(output_path, 'w') as file:
+        file.write(output_string)
 
 def main():
     sessionization_and_behavior_analysis('data/csv/server_logs.csv')
