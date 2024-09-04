@@ -1,11 +1,9 @@
 from flask import Flask, render_template
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.io as pio
+import plotly.express as px
 import pandas as pd
-import io
-import base64
 
-app = Flask(__name__)
+app = Flask(__name__)  # Corrected line
 
 # Load data
 df = pd.read_csv('D:/Sem 9/Final Project/server-log-analysis-main/ServerLogAnalysis/data/csv/server_logs.csv')
@@ -13,42 +11,28 @@ df = pd.read_csv('D:/Sem 9/Final Project/server-log-analysis-main/ServerLogAnaly
 # Count occurrences of each IP address
 ip_counts = df['IP Address'].value_counts().reset_index()
 ip_counts.columns = ['IP Address', 'Count']
+fig1 = px.bar(ip_counts.head(10), x='IP Address', y='Count', title='Top 10 Most Frequent IP Addresses')
+plot1_html = pio.to_html(fig1, full_html=False)
 
 # Create the 'Number of Requests' column by grouping by 'Timestamp'
 requests_over_time = df.groupby('Timestamp').size().reset_index(name='Number of Requests')
+fig2 = px.line(requests_over_time, x='Timestamp', y='Number of Requests', title='Requests Over Time')
+plot2_html = pio.to_html(fig2, full_html=False)
 
-# Create visualizations
-
-# Barplot for top 10 IP Addresses
-fig1 = plt.figure(figsize=(10, 6))
-sns.barplot(x='IP Address', y='Count', data=ip_counts.head(10))
-plt.title('Top 10 Most Frequent IP Addresses')
-plt.xlabel('IP Address')
-plt.ylabel('Count')
-
-# Convert fig1 to base64 string
-img1 = io.BytesIO()
-fig1.savefig(img1, format='png')
-img1.seek(0)
-plot_url1 = base64.b64encode(img1.getvalue()).decode()
-
-# Lineplot for Requests Over Time
-fig2 = plt.figure(figsize=(10, 6))
-sns.lineplot(x='Timestamp', y='Number of Requests', data=requests_over_time)
-plt.title('Requests Over Time')
-plt.xlabel('Time')
-plt.ylabel('Number of Requests')
-
-# Convert fig2 to base64 string
-img2 = io.BytesIO()
-fig2.savefig(img2, format='png')
-img2.seek(0)
-plot_url2 = base64.b64encode(img2.getvalue()).decode()
+# Performance monitoring
+df_performance = pd.read_csv('D:/Sem 9/Final Project/server-log-analysis-main/ServerLogAnalysis/data/csv/server_logs.csv')
+df_performance['Timestamp'] = pd.to_datetime(df_performance['Timestamp'], format='%d/%b/%Y:%H:%M:%S %z')
+relevant_columns = ['Timestamp', 'Request Path', 'Status Code']
+df_performance = df_performance[relevant_columns]
+successful_requests = df_performance[df_performance['Status Code'] == 200]
+request_counts = successful_requests.groupby('Request Path').size().reset_index(name='Count')
+fig3 = px.bar(request_counts, x='Request Path', y='Count', title='Number of Successful Requests for Different Paths/Resources')
+plot3_html = pio.to_html(fig3, full_html=False)
 
 # Render visualizations
 @app.route('/')
 def index():
-    return render_template('index.html', plot_url1=plot_url1, plot_url2=plot_url2)
+    return render_template('index.html', plot1=plot1_html, plot2=plot2_html, plot3=plot3_html)
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # Corrected line
     app.run(debug=True)
