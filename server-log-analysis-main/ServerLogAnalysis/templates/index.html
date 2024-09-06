@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #666;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        img {
+            width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-container {
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .summary-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .summary-title {
+            font-size: 16px;
+            color: #666;
+        }
+        
+        /* Status code breakdown card */
+        .status-card {
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-card h3 {
+            font-size: 22px;
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status-list {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+            font-size: 16px;
+            color: #555;
+        }
+
+        .status-list li {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #666;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .status-list li:before {
+            content: '•';
+            margin-right: 8px;
+            color: #333;
+        }
+
+        /* Color coding for status codes */
+        .status-200 {
+            color: #28a745; /* Green */
+        }
+
+        .status-404 {
+            color: #ffc107; /* Yellow */
+        }
+
+        .status-301 {
+            color: #6f42c1; /* Purple */
+        }
+
+        .status-302 {
+            color: #dc3545; /* Violent (Red) */
+        }
+
+        .col-xs-12,
+        .col-sm-6,
+        .col-md-6,
+        .col-md-12 {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        .header {
+            background: linear-gradient(135deg, #3498db, #2ecc71);
+            color: #fff;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            margin: 5px 0 0;
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        .header .nav {
+            margin-top: 20px;
+        }
+
+        .header .nav a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .header .nav a:hover {
+            text-decoration: underline;
+        }
+        
+        .container-fluid {
+            padding: 0 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+</head>
+
+<body>
+    <header class="header">
+        <h1>Dashboard</h1>
+        <p>Server Log Analysis</p>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Summary Section -->
+            <div class="col-xs-12 col-sm-12 col-md-12">
+                <div class="summary-card">
+                    <h2 class="text-center">Summary Statistics</h2>
+                    <div class="row text-center">
+                        <!-- Total Requests -->
+                        <div class="col-xs-12 col-sm-3 col-md-3">
+                            <div class="summary-value">{{ summary['Total Requests'] }}</div>
+                            <div class="summary-title">Total Requests</div>
+                        </div>
+            
+                        <!-- Unique IP Addresses -->
+                        <div class="col-xs-12 col-sm-3 col-md-3">
+                            <div class="summary-value">{{ summary['Unique IP Addresses'] }}</div>
+                            <div class="summary-title">Unique IP Addresses</div>
+                        </div>
+            
+                        <!-- Most Common Status Code -->
+                        <div class="col-xs-12 col-sm-3 col-md-3">
+                            <div class="summary-value">{{ summary['Most Common Status Code'] }}</div>
+                            <div class="summary-title">Most Common Status Code</div>
+                        </div>
+            
+                        <!-- Average Response Time -->
+                        <div class="col-xs-12 col-sm-3 col-md-3">
+                            <div class="summary-value">{{ summary['Average Response Time'] }}</div>
+                            <div class="summary-title">Avg Response Time (sec)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- First chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_IPfrequent|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Second chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_numbrequests|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Third chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_performance|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fourth chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_statuscode|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fifth chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_device|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sixth chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_timeseries|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Status Code Breakdown Card -->
+    <div class="col-xs-12 col-sm-12 col-md-12">
+        <div class="status-card">
+            <h2 class="text-center">Status Code Breakdown</h2>
+            <div class="row text-center">
+                {% for code, count in summary['Status Code Counts'].items() %}
+                <div class="col-xs-12 col-sm-3 col-md-3">
+                    <div class="status-list">
+                        <div class="summary-value status-{{ code }}">{{ count }}</div>
+                        <div class="summary-title">Status Code {{ code }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7H0lblj1z9mZ7Uuvfa0b4Q" crossorigin="anonymous">
+    </script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous">
+    </script>
+</body>
+
+</html>
