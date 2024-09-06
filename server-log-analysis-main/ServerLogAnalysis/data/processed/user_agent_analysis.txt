@@ -1,6 +1,0 @@
-Device Distribution:
-Generic Feature Phone    171
-Other                    140
-
-Browser Distribution:
-Other    311
