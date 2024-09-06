@@ -58,7 +58,7 @@
             color: #666;
         }
         
-         /* Status code breakdown card */
+        /* Status code breakdown card */
         .status-card {
             background-color: #f9f9f9;
             border: 1px solid #ccc;
@@ -87,12 +87,31 @@
             margin-bottom: 10px;
             font-size: 16px;
             color: #666;
+            padding: 10px;
+            border-radius: 5px;
         }
 
         .status-list li:before {
             content: '•';
             margin-right: 8px;
             color: #333;
+        }
+
+        /* Color coding for status codes */
+        .status-200 {
+            color: #28a745; /* Green */
+        }
+
+        .status-404 {
+            color: #ffc107; /* Yellow */
+        }
+
+        .status-301 {
+            color: #6f42c1; /* Purple */
+        }
+
+        .status-302 {
+            color: #dc3545; /* Violent (Red) */
         }
 
         .col-xs-12,
@@ -102,6 +121,47 @@
             padding-left: 10px;
             padding-right: 10px;
         }
+        .header {
+            background: linear-gradient(135deg, #3498db, #2ecc71);
+            color: #fff;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            margin: 5px 0 0;
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        .header .nav {
+            margin-top: 20px;
+        }
+
+        .header .nav a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .header .nav a:hover {
+            text-decoration: underline;
+        }
+        
+        .container-fluid {
+            padding: 0 20px;
+        }
     </style>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
         integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -109,9 +169,10 @@
 </head>
 
 <body>
-    <h1>Dashboard</h1>
-
-    <h1>Server Log Analysis</h1>
+    <header class="header">
+        <h1>Dashboard</h1>
+        <p>Server Log Analysis</p>
+    </header>
 
     <div class="container-fluid">
         <div class="row">
@@ -147,12 +208,12 @@
                 </div>
             </div>
 
-                        <!-- First chart -->
+            <!-- First chart -->
             <div class="col-xs-12 col-sm-6 col-md-6">
                 <div class="card card-style mb-2">
                     <div class="card-body">
                         <div class="chart-container" style="position: relative;">
-                            {{ plot1|safe }}
+                            {{ plot_IPfrequent|safe }}
                         </div>
                     </div>
                 </div>
@@ -163,7 +224,7 @@
                 <div class="card card-style mb-2">
                     <div class="card-body">
                         <div class="chart-container" style="position: relative;">
-                            {{ plot2|safe }}
+                            {{ plot_numbrequests|safe }}
                         </div>
                     </div>
                 </div>
@@ -174,7 +235,7 @@
                 <div class="card card-style mb-2">
                     <div class="card-body">
                         <div class="chart-container" style="position: relative;">
-                            {{ plot3|safe }}
+                            {{ plot_performance|safe }}
                         </div>
                     </div>
                 </div>
@@ -185,12 +246,33 @@
                 <div class="card card-style mb-2">
                     <div class="card-body">
                         <div class="chart-container" style="position: relative;">
-                            {{ plot4|safe }}
+                            {{ plot_statuscode|safe }}
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Fifth chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_device|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sixth chart -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            {{ plot_timeseries|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </div>
     </div>
@@ -198,12 +280,17 @@
     <!-- Status Code Breakdown Card -->
     <div class="col-xs-12 col-sm-12 col-md-12">
         <div class="status-card">
-            <h3>Status Code Breakdown</h3>
-            <ul class="status-list text-left">
+            <h2 class="text-center">Status Code Breakdown</h2>
+            <div class="row text-center">
                 {% for code, count in summary['Status Code Counts'].items() %}
-                <li>{{ code }}: {{ count }}</li>
+                <div class="col-xs-12 col-sm-3 col-md-3">
+                    <div class="status-list">
+                        <div class="summary-value status-{{ code }}">{{ count }}</div>
+                        <div class="summary-title">Status Code {{ code }}</div>
+                    </div>
+                </div>
                 {% endfor %}
-            </ul>
+            </div>
         </div>
     </div>
 

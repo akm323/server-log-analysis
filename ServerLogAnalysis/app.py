@@ -9,6 +9,7 @@ import pandas as pd
 from config import Config
 from werkzeug.security import generate_password_hash, check_password_hash
 from urllib.parse import urlparse
+from user_agents import parse
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -103,7 +104,7 @@ def index():
     ).group_by(LogEntry.ip_address).order_by(db.func.count(LogEntry.ip_address).desc()).limit(10).all()
     ip_counts_df = pd.DataFrame(ip_counts, columns=['IP Address', 'Count'])
     fig1 = px.bar(ip_counts_df, x='IP Address', y='Count', title='Top 10 Most Frequent IP Addresses')
-    plot1_html = pio.to_html(fig1, full_html=False)
+    plot_IPfrequent_html = pio.to_html(fig1, full_html=False)
 
     # Query the number of requests over time
     # Query data from the database
@@ -116,31 +117,41 @@ def index():
     requests_over_time_grouped = requests_df.groupby('Timestamp').size().reset_index(name='Number of Requests')
     # Create the line plot
     fig2 = px.line(requests_over_time_grouped, x='Timestamp', y='Number of Requests', title='Requests Over Time')
-    plot2_html = pio.to_html(fig2, full_html=False)
+    plot_numbrequests_html = pio.to_html(fig2, full_html=False)
 
 
     # Performance monitoring
-    df_performance = pd.read_csv('D:/Sem 9/Final Project/server-log-analysis-main/ServerLogAnalysis/data/csv/server_logs.csv')
+    df_performance = pd.read_csv('ServerLogAnalysis/data/csv/server_logs.csv')
     df_performance['Timestamp'] = pd.to_datetime(df_performance['Timestamp'], format='%d/%b/%Y:%H:%M:%S %z')
     relevant_columns = ['Timestamp', 'Request Path', 'Status Code']
     df_performance = df_performance[relevant_columns]
-    successful_requests = df_performance[df_performance['Status Code'] == 200]
-    request_counts = successful_requests.groupby('Request Path').size().reset_index(name='Count')
-    fig3 = px.bar(
-        request_counts,
-        x='Request Path', 
-        y='Count', 
-        title='Number of Successful Requests for Different Paths/Resources')
-    plot3_html = pio.to_html(fig3, full_html=False)
+    request_counts = db.session.query(
+        LogEntry.request_path, db.func.count(LogEntry.request_path).label('Count')
+    ).filter(LogEntry.response_code == 200).group_by(LogEntry.request_path).all()
+
+    request_counts_df = pd.DataFrame(request_counts, columns=['Request Path', 'Count'])
+    fig3 = go.Figure(
+        data=[go.Bar(
+            x=request_counts_df['Request Path'].apply(lambda x: x.split('/')[-2]),
+            y=request_counts_df['Count'],
+            marker=dict(color=request_counts_df['Count']),
+            hovertext=request_counts_df['Request Path'],
+            hoverinfo="text+y"
+        )],
+        layout=go.Layout(
+            title="Number of Requests for Different Paths/Resources",
+            xaxis=dict(title='Request Path'),
+            yaxis=dict(title='Count')
+        )
+    )
+    plot_performance_html = pio.to_html(fig3, full_html=False)
 
     # Query the status code counts from the database
     status_code_counts = db.session.query(
         LogEntry.response_code, db.func.count(LogEntry.response_code).label('Count')
     ).group_by(LogEntry.response_code).order_by(db.func.count(LogEntry.response_code).desc()).all()
-
     # Convert query results to a DataFrame
     status_code_df = pd.DataFrame(status_code_counts, columns=['Status Code', 'Count'])
-
     # Create a Plotly bar chart similar to the IP addresses example
     fig4 = px.bar(
         status_code_df, 
@@ -152,7 +163,54 @@ def index():
         category_orders={'Status Code': status_code_df['Status Code'].unique()}
     )
     # Convert Plotly figure to HTML
-    plot4_html = pio.to_html(fig4, full_html=False)
+    plot_statuscode_html = pio.to_html(fig4, full_html=False)
+
+    # Query the User Agent data from the database
+    user_agents = db.session.query(
+        LogEntry.user_agent  # Assuming the 'user_agent' field is in the LogEntry model
+    ).all()
+    # Convert the query result into a list of user agent strings
+    user_agents_list = [ua[0] for ua in user_agents if ua[0]]  # Extract the user agent from the query result tuple
+    # Parse each user agent string and extract device and browser information
+    parsed_user_agents = [parse(ua) for ua in user_agents_list]
+    devices = [ua.device.family for ua in parsed_user_agents]
+    # Count the occurrences of each device and browser
+    device_counts = pd.Series(devices).value_counts()
+    # Convert counts to DataFrames for Plotly plotting
+    device_counts_df = pd.DataFrame(device_counts.reset_index())
+    device_counts_df.columns = ['Device', 'Count']
+    # Create a Plotly bar chart for device distribution
+    fig_device = px.bar(device_counts_df, x='Device', y='Count', title='Distribution of Devices')
+    plot_device_html = pio.to_html(fig_device, full_html=False)
+
+    # Query the log entries and count the number of requests per hour
+    log_entries = db.session.query(LogEntry.timestamp).all()
+    # Convert the result to a DataFrame
+    log_entries_df = pd.DataFrame(log_entries, columns=['Timestamp'])
+    # Convert the Timestamp column to datetime
+    log_entries_df['Timestamp'] = pd.to_datetime(log_entries_df['Timestamp'], format='%d/%b/%Y:%H:%M:%S %z')
+    # Set Timestamp as the index
+    log_entries_df.set_index('Timestamp', inplace=True)
+    # Resample the data to get the count of requests per hour
+    hourly_counts = log_entries_df.resample('H').size().reset_index(name='Count')
+    # Create a Plotly line chart for the time series
+    fig_time_series = px.line(
+        hourly_counts,
+        x='Timestamp',
+        y='Count',
+        title='Hourly Request Count Time-Series',
+        labels={'Timestamp': 'Time', 'Count': 'Number of Requests'}
+    )
+    # Customize the appearance of the plot
+    fig_time_series.update_traces(mode='lines+markers', marker=dict(color='blue'))
+    fig_time_series.update_layout(
+        xaxis_title='Time',
+        yaxis_title='Number of Requests',
+        xaxis_rangeslider_visible=True
+    )
+    # Convert Plotly figure to HTML
+    plot_timeseries_html = pio.to_html(fig_time_series, full_html=False)
+
 
      # Summary statistics
     total_requests = db.session.query(db.func.count(LogEntry.id)).scalar()
@@ -169,7 +227,16 @@ def index():
         'Average Response Time': avg_response_time
     }
 
-    return render_template('index.html', plot1=plot1_html, plot2=plot2_html, plot3=plot3_html, plot4=plot4_html, summary=summary)
+    return render_template(
+        'index.html', 
+        plot_IPfrequent=plot_IPfrequent_html, 
+        plot_numbrequests=plot_numbrequests_html, 
+        plot_performance=plot_performance_html, 
+        plot_statuscode=plot_statuscode_html, 
+        plot_device=plot_device_html,
+        plot_timeseries=plot_timeseries_html, 
+        summary=summary
+    )
 
 if __name__ == '__main__':
     with app.app_context():
