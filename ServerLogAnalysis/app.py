@@ -10,10 +10,12 @@ from config import Config
 from werkzeug.security import generate_password_hash, check_password_hash
 from urllib.parse import urlparse
 from user_agents import parse
+from dotenv import dotenv_values, load_dotenv
 
+load_dotenv()
 app = Flask(__name__)
 app.config.from_object(Config)
-app.secret_key = 'our_secret_key'  # Replace with a secure secret key
+app.secret_key = os.getenv("SECRET_KEY")  # Replace with a secure secret key
 db = SQLAlchemy(app)
 
 # Set up Flask-Login
@@ -93,6 +95,11 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/get_new_data')
+def get_new_data():
+    # Your logic for fetching new data
+    return "New data fetched!"
 
 # Protected route for the dashboard
 @app.route('/')
@@ -256,7 +263,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         # Uncomment the following line if you need to populate the database
-        populate_db()
+        #populate_db()
         # Create an admin user if it doesn't exist
         if User.query.filter_by(username='admin').first() is None:
             admin_user = User(username='admin')
@@ -269,5 +276,5 @@ if __name__ == '__main__':
 try:
     db.session.commit()
 except Exception as e:
-    db.session.rollback()
+    #db.session.rollback()
     print(f"Error occurred during commit: {e}")
