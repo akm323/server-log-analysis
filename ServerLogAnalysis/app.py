@@ -128,7 +128,6 @@ def index():
     request_counts = db.session.query(
         LogEntry.request_path, db.func.count(LogEntry.request_path).label('Count')
     ).filter(LogEntry.response_code == 200).group_by(LogEntry.request_path).all()
-
     request_counts_df = pd.DataFrame(request_counts, columns=['Request Path', 'Count'])
     fig3 = go.Figure(
         data=[go.Bar(
@@ -150,20 +149,35 @@ def index():
     status_code_counts = db.session.query(
         LogEntry.response_code, db.func.count(LogEntry.response_code).label('Count')
     ).group_by(LogEntry.response_code).order_by(db.func.count(LogEntry.response_code).desc()).all()
+
     # Convert query results to a DataFrame
     status_code_df = pd.DataFrame(status_code_counts, columns=['Status Code', 'Count'])
-    # Create a Plotly bar chart similar to the IP addresses example
-    fig4 = px.bar(
+
+    # Create a Plotly pie chart
+    fig4 = px.pie(
         status_code_df, 
-        x='Status Code', 
-        y='Count', 
-        title='Distribution of Status Codes',
+        values='Count', 
+        names='Status Code', 
+        title='Status Codes',
         labels={'Status Code': 'Status Code', 'Count': 'Frequency'},
-        color='Status Code',
-        category_orders={'Status Code': status_code_df['Status Code'].unique()}
     )
+
+    # Customize the layout and add interactivity
+    fig4.update_traces(
+        textinfo='percent+label',  # Display percentage and status code inside the pie
+        hoverinfo='label+percent+value',  # Show label, percentage, and value on hover
+        marker=dict(line=dict(color='black', width=1))  # Add black borders around slices
+    )
+
+    # Update layout for readability
+    fig4.update_layout(
+        showlegend=True,  # Show legend
+        legend_title="Status Code",  # Title for the legend
+    )
+
     # Convert Plotly figure to HTML
     plot_statuscode_html = pio.to_html(fig4, full_html=False)
+
 
     # Query the User Agent data from the database
     user_agents = db.session.query(
@@ -242,7 +256,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         # Uncomment the following line if you need to populate the database
-        # populate_db()
+        populate_db()
         # Create an admin user if it doesn't exist
         if User.query.filter_by(username='admin').first() is None:
             admin_user = User(username='admin')
