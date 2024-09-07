@@ -303,6 +303,61 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
         integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous">
     </script>
+    <script>
+        function fetchNewData() {
+            // Make an AJAX request to your Flask route
+            fetch('/get_new_data')
+            .then(response => response.json())
+            .then(data => {
+                // Assuming 'data' contains the new chart data
+                updateCharts(data);
+            })
+            .catch(error => console.error('Error fetching new data:', error));
+        }
+    
+        // Periodically fetch new data every 10 seconds (10000 milliseconds)
+        setInterval(fetchNewData, 10000);
+    
+        function updateCharts(data) {
+            // Assuming you're using Plotly.js to update your charts
+            Plotly.react('chart1', data.ip_counts);
+            Plotly.react('chart2', data.requests_over_time);
+            Plotly.react('chart3', data.status_codes);
+            Plotly.react('chart4', data.devices);
+        }
+        
+        function updateCharts(data) {
+            // Update the IP address chart
+            Plotly.react('plot_IPfrequent', [{
+                x: data.ip_counts['IP Address'],
+                y: data.ip_counts['Count'],
+                type: 'bar'
+            }]);
+        
+            // Update the Requests Over Time chart
+            Plotly.react('plot_numbrequests', [{
+                x: data.requests_over_time['Hour'],
+                y: data.requests_over_time['Request Count'],
+                type: 'line'
+            }]);
+        
+            // Update Status Code pie chart
+            Plotly.react('plot_statuscode', [{
+                labels: data.status_codes['Status Code'],
+                values: data.status_codes['Count'],
+                type: 'pie'
+            }]);
+        
+            // Update Device Distribution chart
+            Plotly.react('plot_device', [{
+                x: data.devices['Device'],
+                y: data.devices['Count'],
+                type: 'bar'
+            }]);
+        }
+        
+    </script>
+
 </body>
 
 </html>
