@@ -10,7 +10,7 @@ from config import Config
 from werkzeug.security import generate_password_hash, check_password_hash
 from urllib.parse import urlparse
 from user_agents import parse
-from dotenv import dotenv_values, load_dotenv
+from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__)
@@ -73,6 +73,11 @@ def populate_db():
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+@app.route('/get_new_data')
+def get_new_data():
+    # Your logic for fetching new data
+    return "New data fetched!"
+
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -91,15 +96,9 @@ def login():
 
 # Logout route
 @app.route('/logout')
-@login_required
 def logout():
     logout_user()
     return redirect(url_for('login'))
-
-@app.route('/get_new_data')
-def get_new_data():
-    # Your logic for fetching new data
-    return "New data fetched!"
 
 # Protected route for the dashboard
 @app.route('/')
@@ -276,5 +275,5 @@ if __name__ == '__main__':
 try:
     db.session.commit()
 except Exception as e:
-    #db.session.rollback()
+    db.session.rollback()
     print(f"Error occurred during commit: {e}")
