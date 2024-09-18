@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Entry Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Log Entry Analysis</h1>
+
+    <!-- Dropdown for IP filter -->
+    <label for="ip_address">Filter by IP Address:</label>
+    <select id="ip_address" name="ip_address" onchange="updateGraph()">
+        {% for ip in ip_addresses %}
+        <option value="{{ ip }}">{{ ip }}</option>
+        {% endfor %}
+    </select>
+
+    <div id="plot-div"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <script>
+        function updateGraph() {
+            const ip_address = document.getElementById('ip_address').value;
+            console.log('Selected IP:', ip_address);  // Debug: Check if this is being logged
+    
+            axios.post('/track_ip', { ip_address: ip_address })
+                .then(function (response) {
+                    console.log('Graph data:', response.data);  // Debug: Log the received data
+    
+                    const graphData = JSON.parse(response.data);
+                    
+                    if (graphData.data && graphData.layout) {
+                        Plotly.react('plot-div', graphData.data, graphData.layout);
+                    } else {
+                        console.error('Invalid graph data format:', graphData);
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Error updating graph:', error);
+                });
+        }
+    
+        // Add event listener to trigger graph update on dropdown change
+        document.getElementById('ip_address').addEventListener('change', updateGraph);
+    
+        // Load default graph on page load
+        window.onload = updateGraph;
+    </script>
+</body>
+</html>

@@ -162,6 +162,29 @@
         .container-fluid {
             padding: 0 20px;
         }
+
+        /* Logout Button Styling */
+        .logout-button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-top: 10px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .logout-button:hover {
+            background-color: #0056b3;
+        }
+        .dropdown {
+            margin: 20px 0;
+        }
+
+        #ip-graph {
+            margin-top: 20px;
+        }
     </style>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
         integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -172,6 +195,8 @@
     <header class="header">
         <h1>Dashboard</h1>
         <p>Server Log Analysis</p>
+        <a href="{{ url_for('logout') }}" class="logout-button">Logout</a>
+        <a href="{{ url_for('track_ip') }}" class="logout-button">IP</a>
     </header>
 
     <div class="container-fluid">
@@ -273,6 +298,27 @@
                     </div>
                 </div>
             </div>
+            
+
+            <!-- Dropdown for selecting unique IP -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            <!-- Dropdown for IP filter -->
+                            <label for="ip_address">Filter by IP Address:</label>
+                            <select id="ip_address" name="ip_address" onchange="updateGraph()">
+                                {% for ip in ip_addresses %}
+                                <option value="{{ ip }}">{{ ip }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <div id="plot-div"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
 
         </div>
     </div>
@@ -357,6 +403,39 @@
         }
         
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+<script>
+    function updateGraph() {
+        const ip_address = document.getElementById('ip_address').value;
+        console.log('Selected IP:', ip_address);  // Debug: Check if this is being logged
+
+        axios.post('/track_ip', { ip_address: ip_address })
+            .then(function (response) {
+                console.log('Graph data:', response.data);  // Debug: Log the received data
+
+                const graphData = JSON.parse(response.data);
+                
+                if (graphData.data && graphData.layout) {
+                    Plotly.react('plot-div', graphData.data, graphData.layout);
+                } else {
+                    console.error('Invalid graph data format:', graphData);
+                }
+            })
+            .catch(function (error) {
+                console.error('Error updating graph:', error);
+            });
+    }
+
+    // Add event listener to trigger graph update on dropdown change
+    document.getElementById('ip_address').addEventListener('change', updateGraph);
+
+    // Load default graph on page load
+    window.onload = updateGraph;
+</script>
+
 
 </body>
 
