@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user
 import plotly.io as pio
 import plotly.graph_objects as go
@@ -231,6 +231,9 @@ def index():
     # Convert Plotly figure to HTML
     plot_timeseries_html = pio.to_html(fig_time_series, full_html=False)
 
+    # Fetch distinct IP addresses for the dropdown
+    ip_addresses = db.session.query(LogEntry.ip_address).distinct().all()
+    ip_addresses = [ip[0] for ip in ip_addresses]  # Flattening the result
 
      # Summary statistics
     total_requests = db.session.query(db.func.count(LogEntry.id)).scalar()
@@ -254,9 +257,54 @@ def index():
         plot_performance=plot_performance_html, 
         plot_statuscode=plot_statuscode_html, 
         plot_device=plot_device_html,
-        plot_timeseries=plot_timeseries_html, 
+        plot_timeseries=plot_timeseries_html,
+        ip_addresses=ip_addresses, 
         summary=summary
     )
+
+@app.route('/track_ip', methods=['GET', 'POST'])
+@login_required
+def track_ip():
+     if request.method == 'POST':
+        data = request.get_json()  # Parse the JSON data from the request
+        ip_address = data.get('ip_address')
+        print(f"Received IP: {ip_address}")  # Debug: Check if IP is received correctly
+
+        # Query to get the number of requests for different paths/resources filtered by IP
+        request_counts = db.session.query(
+            LogEntry.request_path, db.func.count(LogEntry.request_path).label('Count')
+        ).filter_by(ip_address=ip_address).group_by(LogEntry.request_path).all()
+
+        if not request_counts:
+            return jsonify({"error": "No data found for this IP address"}), 404
+        
+        # Convert to DataFrame for Plotly
+        request_counts_df = pd.DataFrame(request_counts, columns=['Request Path', 'Count'])
+
+        # Create Plotly figure for the number of requests per path
+        fig = go.Figure(
+            data=[go.Bar(
+                x=request_counts_df['Request Path'].apply(lambda x: x.split('/')[-2]),  # Extract last part of path
+                y=request_counts_df['Count'],
+                marker=dict(color=request_counts_df['Count']),
+                hovertext=request_counts_df['Request Path'],
+                hoverinfo="text+y"
+            )],
+            layout=go.Layout(
+                title=f'Number of Requests for Different Paths/Resources (Filtered by IP: {ip_address})',
+                xaxis=dict(title='Request Path'),
+                yaxis=dict(title='Count')
+            )
+        )
+
+        graph_json = pio.to_json(fig)
+        return jsonify(graph_json)
+
+     # Handle GET requests (for the initial page)
+     ip_addresses = db.session.query(LogEntry.ip_address).distinct().all()
+     ip_addresses = [ip[0] for ip in ip_addresses]
+     return render_template('track_ip.html', ip_addresses=ip_addresses)
+
 
 if __name__ == '__main__':
     with app.app_context():
