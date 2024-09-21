@@ -265,7 +265,7 @@ def index():
 @app.route('/track_ip', methods=['GET', 'POST'])
 @login_required
 def track_ip():
-     if request.method == 'POST':
+    if request.method == 'POST':
         data = request.get_json()  # Parse the JSON data from the request
         ip_address = data.get('ip_address')
         print(f"Received IP: {ip_address}")  # Debug: Check if IP is received correctly
@@ -277,12 +277,12 @@ def track_ip():
 
         if not request_counts:
             return jsonify({"error": "No data found for this IP address"}), 404
-        
+
         # Convert to DataFrame for Plotly
         request_counts_df = pd.DataFrame(request_counts, columns=['Request Path', 'Count'])
 
         # Create Plotly figure for the number of requests per path
-        fig = go.Figure(
+        fig_requests = go.Figure(
             data=[go.Bar(
                 x=request_counts_df['Request Path'].apply(lambda x: x.split('/')[-2]),  # Extract last part of path
                 y=request_counts_df['Count'],
@@ -297,13 +297,35 @@ def track_ip():
             )
         )
 
-        graph_json = pio.to_json(fig)
-        return jsonify(graph_json)
+        # Query for requests over time filtered by the selected IP
+        requests_over_time = db.session.query(
+            LogEntry.timestamp.label('Timestamp')
+        ).filter_by(ip_address=ip_address).all()
+        
+        # Convert the result to a DataFrame
+        requests_df = pd.DataFrame(requests_over_time, columns=['Timestamp'])
 
-     # Handle GET requests (for the initial page)
-     ip_addresses = db.session.query(LogEntry.ip_address).distinct().all()
-     ip_addresses = [ip[0] for ip in ip_addresses]
-     return render_template('track_ip.html', ip_addresses=ip_addresses)
+        if not requests_df.empty:
+            # Group by 'Timestamp' and count the number of requests
+            requests_over_time_grouped = requests_df.groupby('Timestamp').size().reset_index(name='Number of Requests')
+
+            # Create the line plot for requests over time
+            fig_time = px.line(requests_over_time_grouped, x='Timestamp', y='Number of Requests', 
+                               title=f'Requests Over Time (Filtered by IP: {ip_address})')
+        else:
+            # If no data, return an empty plot
+            fig_time = px.line(title=f'Requests Over Time (Filtered by IP: {ip_address})')
+        
+        # Convert Plotly figures to JSON
+        graph_requests_json = pio.to_json(fig_requests)
+        graph_time_json = pio.to_json(fig_time)
+
+        return jsonify({"graph_requests": graph_requests_json, "graph_time": graph_time_json})
+
+    # Handle GET requests (for the initial page)
+    ip_addresses = db.session.query(LogEntry.ip_address).distinct().all()
+    ip_addresses = [ip[0] for ip in ip_addresses]
+    return render_template('track_ip.html', ip_addresses=ip_addresses)
 
 
 if __name__ == '__main__':

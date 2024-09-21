@@ -301,11 +301,11 @@
             
 
             <!-- Dropdown for selecting unique IP -->
-            <div class="col-xs-12 col-sm-6 col-md-6">
+            <!-- <div class="col-xs-12 col-sm-6 col-md-6">
                 <div class="card card-style mb-2">
                     <div class="card-body">
                         <div class="chart-container" style="position: relative;">
-                            <!-- Dropdown for IP filter -->
+                            
                             <label for="ip_address">Filter by IP Address:</label>
                             <select id="ip_address" name="ip_address" onchange="updateGraph()">
                                 {% for ip in ip_addresses %}
@@ -317,7 +317,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
         
 
         </div>
@@ -405,9 +405,9 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
-<script>
+<!-- <script>
     function updateGraph() {
         const ip_address = document.getElementById('ip_address').value;
         console.log('Selected IP:', ip_address);  // Debug: Check if this is being logged
@@ -434,7 +434,7 @@
 
     // Load default graph on page load
     window.onload = updateGraph;
-</script>
+</script> -->
 
 
 </body>

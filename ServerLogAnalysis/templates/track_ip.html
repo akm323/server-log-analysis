@@ -18,7 +18,11 @@
         {% endfor %}
     </select>
 
-    <div id="plot-div"></div>
+    <!-- Graph for the number of requests per path -->
+    <div id="plot-div-requests"></div>
+
+    <!-- Graph for the requests over time -->
+    <div id="plot-div-time"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -32,12 +36,22 @@
                 .then(function (response) {
                     console.log('Graph data:', response.data);  // Debug: Log the received data
     
-                    const graphData = JSON.parse(response.data);
-                    
-                    if (graphData.data && graphData.layout) {
-                        Plotly.react('plot-div', graphData.data, graphData.layout);
+                    // Parse the received JSON data for both graphs
+                    const graphRequests = JSON.parse(response.data.graph_requests);  // Requests per path
+                    const graphTime = JSON.parse(response.data.graph_time);  // Requests over time
+    
+                    // Update the graph for "Number of Requests per Path"
+                    if (graphRequests.data && graphRequests.layout) {
+                        Plotly.react('plot-div-requests', graphRequests.data, graphRequests.layout);
                     } else {
-                        console.error('Invalid graph data format:', graphData);
+                        console.error('Invalid requests graph data format:', graphRequests);
+                    }
+    
+                    // Update the graph for "Requests Over Time"
+                    if (graphTime.data && graphTime.layout) {
+                        Plotly.react('plot-div-time', graphTime.data, graphTime.layout);
+                    } else {
+                        console.error('Invalid time graph data format:', graphTime);
                     }
                 })
                 .catch(function (error) {
@@ -51,5 +65,6 @@
         // Load default graph on page load
         window.onload = updateGraph;
     </script>
+    
 </body>
 </html>
