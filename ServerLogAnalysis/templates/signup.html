@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Sign Up</title>
     <style>
         body {
             margin: 0;
@@ -45,12 +45,12 @@
         }
 
         .form-control {
-            width: calc(100% - 22px); /* Adjust width to account for padding and border */
+            width: calc(100% - 22px);
             padding: 10px;
             border-radius: 5px;
             border: 1px solid #ddd;
             font-size: 16px;
-            box-sizing: border-box; /* Ensure padding and border are included in width */
+            box-sizing: border-box;
         }
 
         .btn {
@@ -67,6 +67,7 @@
         .btn:hover {
             background: #2980b9;
         }
+
         .error {
             color: red;
             font-weight: bold;
@@ -82,20 +83,20 @@
 </head>
 <body>
     <div class="container">
-        <h2>Login</h2>
+        <h2>Add User</h2>
 
         <!-- Flashed Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    {% if category == 'login_error' %}
-                        <p class="error">{{ message }}</p>
+                    {% if category.startswith('signup_') %}
+                        <p class="{{ category }}">{{ message }}</p>
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('login') }}">
+        <form method="POST" action="{{ url_for('signup') }}">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" class="form-control" required>
@@ -104,7 +105,11 @@
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" class="form-control" required>
             </div>
-            <button type="submit" class="btn">Login</button>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+            </div>
+            <button type="submit" class="btn">Add</button>
         </form>
     </div>
 </body>

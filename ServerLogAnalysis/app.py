@@ -1,4 +1,5 @@
 import os
+from winreg import HKEY_CURRENT_USER
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user
 import plotly.io as pio
@@ -11,6 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from urllib.parse import urlparse
 from user_agents import parse
 from dotenv import load_dotenv
+from flask_login import current_user
 
 load_dotenv()
 app = Flask(__name__)
@@ -86,11 +88,17 @@ def login():
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
 
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('index'))
+        if user:
+           # If user exists, check the password
+           if user.check_password(password):
+               login_user(user)
+               return redirect(url_for('index'))
+           else:
+               # Flash message for incorrect password
+               flash('Incorrect password. Please try again.', 'login_error')
         else:
-            flash('Invalid username or password')
+           # Flash message for invalid username
+           flash('Invalid username. Please check your username.', 'login_error')
 
     return render_template('login.html')
 
@@ -125,7 +133,6 @@ def index():
     fig2 = px.line(requests_over_time_grouped, x='Timestamp', y='Number of Requests', title='Requests Over Time')
     plot_numbrequests_html = pio.to_html(fig2, full_html=False)
 
-
     # Performance monitoring
     df_performance = pd.read_csv('ServerLogAnalysis/data/csv/server_logs.csv')
     df_performance['Timestamp'] = pd.to_datetime(df_performance['Timestamp'], format='%d/%b/%Y:%H:%M:%S %z')
@@ -155,10 +162,8 @@ def index():
     status_code_counts = db.session.query(
         LogEntry.response_code, db.func.count(LogEntry.response_code).label('Count')
     ).group_by(LogEntry.response_code).order_by(db.func.count(LogEntry.response_code).desc()).all()
-
     # Convert query results to a DataFrame
     status_code_df = pd.DataFrame(status_code_counts, columns=['Status Code', 'Count'])
-
     # Create a Plotly pie chart
     fig4 = px.pie(
         status_code_df, 
@@ -167,20 +172,17 @@ def index():
         title='Status Codes',
         labels={'Status Code': 'Status Code', 'Count': 'Frequency'},
     )
-
     # Customize the layout and add interactivity
     fig4.update_traces(
         textinfo='percent+label',  # Display percentage and status code inside the pie
         hoverinfo='label+percent+value',  # Show label, percentage, and value on hover
         marker=dict(line=dict(color='black', width=1))  # Add black borders around slices
     )
-
     # Update layout for readability
     fig4.update_layout(
         showlegend=True,  # Show legend
         legend_title="Status Code",  # Title for the legend
     )
-
     # Convert Plotly figure to HTML
     plot_statuscode_html = pio.to_html(fig4, full_html=False)
 
@@ -316,17 +318,159 @@ def track_ip():
             # If no data, return an empty plot
             fig_time = px.line(title=f'Requests Over Time (Filtered by IP: {ip_address})')
         
+        # Query for status code counts filtered by the selected IP
+        status_code_counts = db.session.query(
+            LogEntry.response_code, db.func.count(LogEntry.response_code).label('Count')
+        ).filter_by(ip_address=ip_address).group_by(LogEntry.response_code).order_by(db.func.count(LogEntry.response_code).desc()).all()
+
+        # Convert query results to a DataFrame
+        status_code_df = pd.DataFrame(status_code_counts, columns=['Status Code', 'Count'])
+
+        if not status_code_df.empty:
+            # Create a Plotly pie chart for the status codes
+            fig_status = px.pie(
+                status_code_df, 
+                values='Count', 
+                names='Status Code', 
+                title=f'Status Codes (Filtered by IP: {ip_address})',
+                labels={'Status Code': 'Status Code', 'Count': 'Frequency'}
+            )
+            # Customize the layout and add interactivity
+            fig_status.update_traces(
+                textinfo='percent+label',  # Display percentage and status code inside the pie
+                hoverinfo='label+percent+value',  # Show label, percentage, and value on hover
+                marker=dict(line=dict(color='black', width=1))  # Add black borders around slices
+            )
+            # Update layout for readability
+            fig_status.update_layout(
+                showlegend=True,  # Show legend
+                legend_title="Status Code",  # Title for the legend
+            )
+        else:
+            # If no data, return an empty pie chart
+            fig_status = px.pie(title=f'Status Codes (Filtered by IP: {ip_address})')
+
         # Convert Plotly figures to JSON
         graph_requests_json = pio.to_json(fig_requests)
         graph_time_json = pio.to_json(fig_time)
+        graph_status_json = pio.to_json(fig_status)
 
-        return jsonify({"graph_requests": graph_requests_json, "graph_time": graph_time_json})
+        # Return all three graphs (requests per path, requests over time, and status codes)
+        return jsonify({
+            "graph_requests": graph_requests_json,
+            "graph_time": graph_time_json,
+            "graph_status": graph_status_json
+        })
 
     # Handle GET requests (for the initial page)
     ip_addresses = db.session.query(LogEntry.ip_address).distinct().all()
     ip_addresses = [ip[0] for ip in ip_addresses]
     return render_template('track_ip.html', ip_addresses=ip_addresses)
 
+def user_exists(username):
+    # Replace this with the actual logic to check if the user exists in the database
+    return username == "existingUser"
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        # Get form data
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        # Step 1: Validate the form data
+        if not username or not password or not confirm_password:
+            flash('Please fill out all fields', 'signup_error')
+            return redirect(url_for('signup'))
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'signup_error')
+            return redirect(url_for('signup'))
+
+        # Check if username already exists
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username already exists. Please choose a different one.', 'signup_error')
+            return redirect(url_for('signup'))
+
+        # Step 2: Hash the password and add the new user to the database
+        try:
+            hashed_password = generate_password_hash(password)
+            new_user = User(username=username, password_hash=hashed_password)
+            db.session.add(new_user)
+            db.session.commit()
+
+            return redirect(url_for('manage_users'))  # Redirect to manage users page after signup
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred: {str(e)}', 'signup_error')
+            return redirect(url_for('signup'))
+
+    # Render the sign-up form if it's a GET request
+    return render_template('signup.html')
+
+@app.route('/manage_users', methods=['GET'])
+@login_required
+def manage_users():
+    users = User.query.all()  # Fetch all users from the database
+    return render_template('manage_users.html', users=users)
+
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    user_to_delete = User.query.get_or_404(user_id)
+
+    # Ensure the current user cannot delete themselves
+    if user_to_delete.id == current_user.id:
+        flash('You cannot delete your own account!', 'error')
+        return redirect(url_for('manage_users'))
+
+    try:
+        db.session.delete(user_to_delete)
+        db.session.commit()
+        flash(f'User {user_to_delete.username} has been deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting user: {str(e)}', 'error')
+    
+    return redirect(url_for('manage_users'))
+
+# Assuming you're storing the user information in a database
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required  # Ensures only authenticated users can access the route
+def change_password():
+    if request.method == 'POST':
+        # Get form data
+        old_password = request.form.get('old_password')
+        new_password = request.form.get('new_password')
+        confirm_new_password = request.form.get('confirm_new_password')
+
+        # Get the logged-in user from the current session
+        user = current_user  # This uses Flask-Login to get the current user
+
+        # Step 1: Verify if the old password is correct
+        if not user.check_password(old_password):  # Use check_password method
+            flash('Old password is incorrect', 'error')
+            return redirect(url_for('change_password'))
+
+        # Step 2: Check if new password and confirm password match
+        if new_password != confirm_new_password:
+            flash('New passwords do not match', 'error')
+            return redirect(url_for('change_password'))
+
+        # Step 3: Update the password in the database
+        try:
+            user.set_password(new_password)  # Set the new password using the method
+            db.session.commit()  # Save changes to the database
+            flash('Password changed successfully', 'success')
+            return redirect(url_for('login'))  # Redirect to the login page after success
+        except Exception as e:
+            db.session.rollback()  # Rollback if there was an error during commit
+            flash(f'An error occurred: {str(e)}', 'error')
+            return redirect(url_for('change_password'))
+
+    return render_template('change_password.html')
 
 if __name__ == '__main__':
     with app.app_context():
@@ -334,9 +478,9 @@ if __name__ == '__main__':
         # Uncomment the following line if you need to populate the database
         #populate_db()
         # Create an admin user if it doesn't exist
-        if User.query.filter_by(username='admin').first() is None:
-            admin_user = User(username='admin')
-            admin_user.set_password('password123')  # Change the password for production use
+        if User.query.filter_by(username='ak').first() is None:
+            admin_user = User(username='ak')
+            admin_user.set_password('ak249')  # Change the password for production use
             db.session.add(admin_user)
             db.session.commit()
     app.run(debug=True)

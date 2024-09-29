@@ -1,70 +1,395 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log Entry Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #666;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .app-bar {
+            background: linear-gradient(135deg, #3498db, #2ecc71);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .app-bar h1 {
+            margin: 0;
+            font-size: 40px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .app-bar p {
+            margin: 5px 0 0;
+            font-size: 18px;
+            font-weight: 300;
+        }
+
+        .app-bar .nav {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-bar .nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            
+        }
+
+        .app-bar .nav a:hover {
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+
+        .summary-card {
+            background-color: #fff;
+            border: none;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .summary-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .summary-title {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .status-card {
+            background-color: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+
+        .status-card:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-card h3 {
+            font-size: 22px;
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status-list {
+            list-style: none;
+            padding: 0;
+            font-size: 16px;
+            color: #555;
+        }
+
+        .status-list li {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+
+        .status-list li:before {
+            content: '•';
+            margin-right: 10px;
+            color: #3498db;
+        }
+
+        .status-200 {
+            color: #28a745;
+        }
+
+        .status-404 {
+            color: #ffc107;
+        }
+
+        .status-301 {
+            color: #6f42c1;
+        }
+
+        .status-302 {
+            color: #dc3545;
+        }
+
+        .profile-dropdown {
+            position: relative;
+        }
+        
+
+
+        .app-bar .nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .app-bar .nav a:hover {
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+        
+        .app-bar .nav a.active {
+            background-color: #ffffff;
+            color: #3498db;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 2px solid #3498db;
+            transition: background-color 0.3s, box-shadow 0.3s, color 0.3s;
+        }
+
+        /* Account Icon */
+.profile-dropdown {
+    position: relative;
+    display: inline-block;
+    margin-left: auto; /* Moves the account icon to the far right of the nav */
+}
+
+.account-icon {
+    cursor: pointer;
+    margin-left: 20px;
+    vertical-align: middle;
+    transition: transform 0.3s;
+}
+
+.account-icon:hover {
+    transform: scale(1.1);
+}
+
+/* Dropdown Menu */
+.profile-dropdown .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%; /* Ensures dropdown opens below the icon */
+    left: auto; /* Override any existing left alignment */
+    right: 0; /* Aligns the right side of the dropdown with the account icon */
+    background-color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 150px;
+    z-index: 1;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Show dropdown on hover */
+.profile-dropdown:hover .dropdown-menu {
+    display: block;
+}
+
+.profile-dropdown .dropdown-menu a {
+    display: block;
+    padding: 10px;
+    color: #333;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.profile-dropdown .dropdown-menu a:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #3498db;
+}
+
+/* Show dropdown on hover */
+.profile-dropdown:hover .dropdown-menu {
+    display: block;
+}
+
+/* Adjust the dropdown shadow when hovering */
+.profile-dropdown:hover .dropdown-menu {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.right-menu {
+    margin-left: 1100px; /* Moves the account icon to the right */
+}
+        
+    </style>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 </head>
+
 <body>
-    <h1>Log Entry Analysis</h1>
+    <nav class="app-bar">
+        <h1>Server Log Analysis</h1>
+        <div class="nav">
+            <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
+            <a href="{{ url_for('track_ip') }}" class="{% if request.endpoint == 'track_ip' %}active{% endif %}">Track IP</a>
+    
+            <!-- Account Dropdown -->
+            <div class="right-menu">
+                <div class="profile-dropdown">
+                    <img src="https://img.icons8.com/ios-glyphs/30/ffffff/user--v1.png" alt="Account" class="account-icon">
+                    <div class="dropdown-menu">
+                        <a href="{{ url_for('change_password') }}">Change Password</a>
+                        <a href="{{ url_for('manage_users') }}">Manage Users</a>
+                        <a href="{{ url_for('logout') }}">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
 
     <!-- Dropdown for IP filter -->
-    <label for="ip_address">Filter by IP Address:</label>
-    <select id="ip_address" name="ip_address" onchange="updateGraph()">
-        {% for ip in ip_addresses %}
-        <option value="{{ ip }}">{{ ip }}</option>
-        {% endfor %}
-    </select>
+    <div class="container-fluid">
+        <h2>Filter by IP Address</h2>
+        <label for="ip_address">Select an IP:</label>
+        <select id="ip_address" name="ip_address" onchange="updateGraph()">
+            {% for ip in ip_addresses %}
+            <option value="{{ ip }}">{{ ip }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-    <!-- Graph for the number of requests per path -->
-    <div id="plot-div-requests"></div>
+    <!-- Graph containers -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Number of Requests per Path -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            <div id="plot-div-requests"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Graph for the requests over time -->
-    <div id="plot-div-time"></div>
+            <!-- Requests Over Time -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            <div id="plot-div-time"></div>
+                        </div>
+                    </div>                    
+                </div>
+            </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    
+            <!-- Status Codes -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            <div id="plot-div-status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7H0lblj1z9mZ7Uuvfa0b4Q" crossorigin="anonymous">
+    </script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous">
+    </script>
     <script>
         function updateGraph() {
             const ip_address = document.getElementById('ip_address').value;
-            console.log('Selected IP:', ip_address);  // Debug: Check if this is being logged
-    
+            console.log('Selected IP:', ip_address);
+
             axios.post('/track_ip', { ip_address: ip_address })
                 .then(function (response) {
-                    console.log('Graph data:', response.data);  // Debug: Log the received data
-    
-                    // Parse the received JSON data for both graphs
-                    const graphRequests = JSON.parse(response.data.graph_requests);  // Requests per path
-                    const graphTime = JSON.parse(response.data.graph_time);  // Requests over time
-    
+                    console.log('Graph data:', response.data);
+
+                    // Parse the received JSON data for all three graphs
+                    const graphRequests = JSON.parse(response.data.graph_requests);
+                    const graphTime = JSON.parse(response.data.graph_time);
+                    const graphStatus = JSON.parse(response.data.graph_status);
+
                     // Update the graph for "Number of Requests per Path"
                     if (graphRequests.data && graphRequests.layout) {
                         Plotly.react('plot-div-requests', graphRequests.data, graphRequests.layout);
                     } else {
                         console.error('Invalid requests graph data format:', graphRequests);
                     }
-    
+
                     // Update the graph for "Requests Over Time"
                     if (graphTime.data && graphTime.layout) {
                         Plotly.react('plot-div-time', graphTime.data, graphTime.layout);
                     } else {
                         console.error('Invalid time graph data format:', graphTime);
                     }
+
+                    // Update the graph for "Status Codes"
+                    if (graphStatus.data && graphStatus.layout) {
+                        Plotly.react('plot-div-status', graphStatus.data, graphStatus.layout);
+                    } else {
+                        console.error('Invalid status code graph data format:', graphStatus);
+                    }
                 })
                 .catch(function (error) {
                     console.error('Error updating graph:', error);
                 });
         }
-    
-        // Add event listener to trigger graph update on dropdown change
+
         document.getElementById('ip_address').addEventListener('change', updateGraph);
-    
-        // Load default graph on page load
         window.onload = updateGraph;
     </script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </body>
+
 </html>
