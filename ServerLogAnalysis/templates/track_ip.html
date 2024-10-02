@@ -270,6 +270,7 @@
         <div class="nav">
             <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
             <a href="{{ url_for('track_ip') }}" class="{% if request.endpoint == 'track_ip' %}active{% endif %}">Track IP</a>
+            <a href="{{ url_for('track_url') }}" class="{% if request.endpoint == 'track_url' %}active{% endif %}">Track URL</a>
     
             <!-- Account Dropdown -->
             <div class="right-menu">
