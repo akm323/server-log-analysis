@@ -331,6 +331,17 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- User Agent -->
+            <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="card card-style mb-2">
+                    <div class="card-body">
+                        <div class="chart-container" style="position: relative;">
+                            <div id="plot-div-device"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </div>
         
@@ -349,45 +360,54 @@
         function updateGraph() {
             const ip_address = document.getElementById('ip_address').value;
             console.log('Selected IP:', ip_address);
-
+        
             axios.post('/track_ip', { ip_address: ip_address })
                 .then(function (response) {
                     console.log('Graph data:', response.data);
-
-                    // Parse the received JSON data for all three graphs
+        
+                    // Parse the received JSON data for all four graphs
                     const graphRequests = JSON.parse(response.data.graph_requests);
                     const graphTime = JSON.parse(response.data.graph_time);
                     const graphStatus = JSON.parse(response.data.graph_status);
-
+                    const graphDevice = JSON.parse(response.data.graph_device);  // Added for the device distribution graph
+        
                     // Update the graph for "Number of Requests per Path"
                     if (graphRequests.data && graphRequests.layout) {
                         Plotly.react('plot-div-requests', graphRequests.data, graphRequests.layout);
                     } else {
                         console.error('Invalid requests graph data format:', graphRequests);
                     }
-
+        
                     // Update the graph for "Requests Over Time"
                     if (graphTime.data && graphTime.layout) {
                         Plotly.react('plot-div-time', graphTime.data, graphTime.layout);
                     } else {
                         console.error('Invalid time graph data format:', graphTime);
                     }
-
+        
                     // Update the graph for "Status Codes"
                     if (graphStatus.data && graphStatus.layout) {
                         Plotly.react('plot-div-status', graphStatus.data, graphStatus.layout);
                     } else {
                         console.error('Invalid status code graph data format:', graphStatus);
                     }
+        
+                    // Update the graph for "Device Distribution"
+                    if (graphDevice.data && graphDevice.layout) {
+                        Plotly.react('plot-div-device', graphDevice.data, graphDevice.layout);  // Added device graph update
+                    } else {
+                        console.error('Invalid device graph data format:', graphDevice);
+                    }
                 })
                 .catch(function (error) {
                     console.error('Error updating graph:', error);
                 });
         }
-
+        
+        // Add event listener for IP address selection and update graphs on page load
         document.getElementById('ip_address').addEventListener('change', updateGraph);
         window.onload = updateGraph;
-    </script>
+            </script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </body>
