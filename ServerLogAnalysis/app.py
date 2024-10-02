@@ -350,16 +350,42 @@ def track_ip():
             # If no data, return an empty pie chart
             fig_status = px.pie(title=f'Status Codes (Filtered by IP: {ip_address})')
 
+        user_agents = db.session.query(
+            LogEntry.user_agent
+        ).filter_by(ip_address=ip_address).all()
+
+        # Convert the query result into a list of user agent strings
+        user_agents_list = [ua[0] for ua in user_agents if ua[0]]
+
+        # Parse each user agent string and extract device information
+        parsed_user_agents = [parse(ua) for ua in user_agents_list]
+        devices = [ua.device.family for ua in parsed_user_agents]
+
+        # Count the occurrences of each device
+        device_counts = pd.Series(devices).value_counts()
+
+        # Convert counts to DataFrame for Plotly plotting
+        device_counts_df = pd.DataFrame(device_counts.reset_index())
+        device_counts_df.columns = ['Device', 'Count']
+
+        # Create a Plotly bar chart for device distribution
+        fig_device = px.bar(device_counts_df, x='Device', y='Count', title=f'Device Distribution (Filtered by IP: {ip_address})')
+
+
+
         # Convert Plotly figures to JSON
         graph_requests_json = pio.to_json(fig_requests)
         graph_time_json = pio.to_json(fig_time)
         graph_status_json = pio.to_json(fig_status)
+        graph_device_json = pio.to_json(fig_device)
+
 
         # Return all three graphs (requests per path, requests over time, and status codes)
         return jsonify({
             "graph_requests": graph_requests_json,
             "graph_time": graph_time_json,
-            "graph_status": graph_status_json
+            "graph_status": graph_status_json,
+            "graph_device": graph_device_json
         })
 
     # Handle GET requests (for the initial page)
@@ -401,7 +427,7 @@ def signup():
             db.session.add(new_user)
             db.session.commit()
 
-            return redirect(url_for('manage_users'))  # Redirect to manage users page after signup
+            return redirect(url_for('manage_users'))  # Redirect to manage users page after adding a user
         except Exception as e:
             db.session.rollback()
             flash(f'An error occurred: {str(e)}', 'signup_error')
