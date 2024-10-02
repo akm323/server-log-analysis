@@ -397,6 +397,131 @@ def user_exists(username):
     # Replace this with the actual logic to check if the user exists in the database
     return username == "existingUser"
 
+@app.route('/track_url', methods=['GET', 'POST'])
+@login_required
+def track_url():
+    if request.method == 'POST':
+        data = request.get_json()  # Parse the JSON data from the request
+        request_path = data.get('request_path')  # Get the selected URL
+        print(f"Received URL: {request_path}")  # Debug: Check if URL is received correctly
+
+        # Query to get the number of requests for different IP addresses filtered by the selected URL
+        request_counts = db.session.query(
+            LogEntry.ip_address, db.func.count(LogEntry.ip_address).label('Count')
+        ).filter_by(request_path=request_path).group_by(LogEntry.ip_address).all()
+
+        if not request_counts:
+            return jsonify({"error": "No data found for this URL"}), 404
+
+        # Convert to DataFrame for Plotly
+        request_counts_df = pd.DataFrame(request_counts, columns=['IP Address', 'Count'])
+
+        # Create Plotly figure for the number of requests per IP address
+        fig_requests = go.Figure(
+            data=[go.Bar(
+                x=request_counts_df['IP Address'],
+                y=request_counts_df['Count'],
+                marker=dict(color=request_counts_df['Count']),
+                hovertext=request_counts_df['IP Address'],
+                hoverinfo="text+y"
+            )],
+            layout=go.Layout(
+                title=f'Number of Requests for Different IPs (Filtered by URL: {request_path})',
+                xaxis=dict(title='IP Address'),
+                yaxis=dict(title='Count')
+            )
+        )
+
+        # Query for requests over time filtered by the selected URL
+        requests_over_time = db.session.query(
+            LogEntry.timestamp.label('Timestamp')
+        ).filter_by(request_path=request_path).all()
+
+        # Convert the result to a DataFrame
+        requests_df = pd.DataFrame(requests_over_time, columns=['Timestamp'])
+
+        if not requests_df.empty:
+            # Group by 'Timestamp' and count the number of requests
+            requests_over_time_grouped = requests_df.groupby('Timestamp').size().reset_index(name='Number of Requests')
+
+            # Create the line plot for requests over time
+            fig_time = px.line(requests_over_time_grouped, x='Timestamp', y='Number of Requests', 
+                               title=f'Requests Over Time (Filtered by URL: {request_path})')
+        else:
+            # If no data, return an empty plot
+            fig_time = px.line(title=f'Requests Over Time (Filtered by URL: {request_path})')
+
+        # Query for status code counts filtered by the selected URL
+        status_code_counts = db.session.query(
+            LogEntry.response_code, db.func.count(LogEntry.response_code).label('Count')
+        ).filter_by(request_path=request_path).group_by(LogEntry.response_code).order_by(db.func.count(LogEntry.response_code).desc()).all()
+
+        # Convert query results to a DataFrame
+        status_code_df = pd.DataFrame(status_code_counts, columns=['Status Code', 'Count'])
+
+        if not status_code_df.empty:
+            # Create a Plotly pie chart for the status codes
+            fig_status = px.pie(
+                status_code_df, 
+                values='Count', 
+                names='Status Code', 
+                title=f'Status Codes (Filtered by URL: {request_path})',
+                labels={'Status Code': 'Status Code', 'Count': 'Frequency'}
+            )
+            fig_status.update_traces(
+                textinfo='percent+label',
+                hoverinfo='label+percent+value',
+                marker=dict(line=dict(color='black', width=1))
+            )
+            fig_status.update_layout(
+                showlegend=True,
+                legend_title="Status Code"
+            )
+        else:
+            fig_status = px.pie(title=f'Status Codes (Filtered by URL: {request_path})')
+
+        # Query for user agent data filtered by the selected URL
+        user_agents = db.session.query(
+            LogEntry.user_agent
+        ).filter_by(request_path=request_path).all()
+
+        user_agents_list = [ua[0] for ua in user_agents if ua[0]]
+        parsed_user_agents = [parse(ua) for ua in user_agents_list]
+        devices = [ua.device.family for ua in parsed_user_agents]
+        device_counts = pd.Series(devices).value_counts()
+
+        device_counts_df = pd.DataFrame(device_counts.reset_index())
+        device_counts_df.columns = ['Device', 'Count']
+
+        # Create a Plotly bar chart for device distribution
+        fig_device = px.bar(device_counts_df, x='Device', y='Count', title=f'Device Distribution (Filtered by URL: {request_path})')
+
+        # Convert Plotly figures to JSON
+        graph_requests_json = pio.to_json(fig_requests)
+        graph_time_json = pio.to_json(fig_time)
+        graph_status_json = pio.to_json(fig_status)
+        graph_device_json = pio.to_json(fig_device)
+
+        # Return all graphs (requests per IP, requests over time, status codes, and device distribution)
+        return jsonify({
+            "graph_requests": graph_requests_json,
+            "graph_time": graph_time_json,
+            "graph_status": graph_status_json,
+            "graph_device": graph_device_json
+        })
+
+    # Handle GET requests (for the initial page)
+    request_paths = db.session.query(LogEntry.request_path).distinct().all()
+    
+    # Limit URL paths to show only up to 3 folders
+    def limit_url_path(url):
+        parts = url.split('/')
+        return '/'.join(parts[:3]) if len(parts) > 3 else url
+    
+    request_paths = [limit_url_path(rp[0]) for rp in request_paths]
+    
+    return render_template('track_url.html', request_paths=request_paths)
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
