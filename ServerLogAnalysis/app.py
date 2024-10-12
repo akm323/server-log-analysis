@@ -1,6 +1,5 @@
 import os
-from winreg import HKEY_CURRENT_USER
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user
 import plotly.io as pio
 import plotly.graph_objects as go
@@ -9,7 +8,6 @@ from flask_sqlalchemy import SQLAlchemy
 import pandas as pd
 from config import Config
 from werkzeug.security import generate_password_hash, check_password_hash
-from urllib.parse import urlparse
 from user_agents import parse
 from dotenv import load_dotenv
 from flask_login import current_user
