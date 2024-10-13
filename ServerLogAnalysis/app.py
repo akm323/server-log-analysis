@@ -406,10 +406,10 @@ def track_url():
         # Query to get the number of requests for different IP addresses filtered by the selected URL
         request_counts = db.session.query(
             LogEntry.ip_address, db.func.count(LogEntry.ip_address).label('Count')
-        ).filter_by(request_path=request_path).group_by(LogEntry.ip_address).all()
+        ).filter(LogEntry.request_path.like(f"{request_path}%")).group_by(LogEntry.ip_address).all()
 
         if not request_counts:
-            return jsonify({"error": "No data found for this URL"}), 404
+            return jsonify({"error": "No data found for this URL: {request_path}"}), 404
 
         # Convert to DataFrame for Plotly
         request_counts_df = pd.DataFrame(request_counts, columns=['IP Address', 'Count'])
@@ -433,7 +433,7 @@ def track_url():
         # Query for requests over time filtered by the selected URL
         requests_over_time = db.session.query(
             LogEntry.timestamp.label('Timestamp')
-        ).filter_by(request_path=request_path).all()
+        ).filter(LogEntry.request_path.like(f"{request_path}%")).all()
 
         # Convert the result to a DataFrame
         requests_df = pd.DataFrame(requests_over_time, columns=['Timestamp'])
@@ -447,12 +447,19 @@ def track_url():
                                title=f'Requests Over Time (Filtered by URL: {request_path})')
         else:
             # If no data, return an empty plot
-            fig_time = px.line(title=f'Requests Over Time (Filtered by URL: {request_path})')
-
+            fig_time = go.Figure()
+            fig_time.add_annotation(
+                text="No request data available over time for this URL.",
+                xref="paper", yref="paper",
+                showarrow=False,
+                font=dict(size=14)
+            )
+            fig_time.update_layout(title=f'Requests Over Time (Filtered by URL: {request_path})')
+        
         # Query for status code counts filtered by the selected URL
         status_code_counts = db.session.query(
             LogEntry.response_code, db.func.count(LogEntry.response_code).label('Count')
-        ).filter_by(request_path=request_path).group_by(LogEntry.response_code).order_by(db.func.count(LogEntry.response_code).desc()).all()
+        ).filter(LogEntry.request_path.like(f"{request_path}%")).group_by(LogEntry.response_code).all()
 
         # Convert query results to a DataFrame
         status_code_df = pd.DataFrame(status_code_counts, columns=['Status Code', 'Count'])
@@ -476,13 +483,21 @@ def track_url():
                 legend_title="Status Code"
             )
         else:
-            fig_status = px.pie(title=f'Status Codes (Filtered by URL: {request_path})')
-
+            # No data case: Create an empty figure with a message
+            fig_status = go.Figure()
+            fig_status.add_annotation(
+                text="No status code data available for this URL.",
+                xref="paper", yref="paper",
+                showarrow=False,
+                font=dict(size=14)
+            )
+            fig_status.update_layout(title=f'Status Codes (Filtered by URL: {request_path})')
+            
         # Query for user agent data filtered by the selected URL
         user_agents = db.session.query(
             LogEntry.user_agent
-        ).filter_by(request_path=request_path).all()
-
+        ).filter(LogEntry.request_path.like(f"{request_path}%")).all()
+        
         user_agents_list = [ua[0] for ua in user_agents if ua[0]]
         parsed_user_agents = [parse(ua) for ua in user_agents_list]
         devices = [ua.device.family for ua in parsed_user_agents]
@@ -513,9 +528,11 @@ def track_url():
     
     # Limit URL paths to show only up to 3 folders
     def limit_url_path(url):
-        parts = url.split('/')
-        return '/'.join(parts[:3]) if len(parts) > 3 else url
-    
+            if '?' in url or '#' in url:
+                return url
+            parts = url.split('/')
+            return '/'.join(parts[:3]) if len(parts) > 3 else url
+
     request_paths = [limit_url_path(rp[0]) for rp in request_paths]
     
     return render_template('track_url.html', request_paths=request_paths)
