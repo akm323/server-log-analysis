@@ -46,27 +46,68 @@ class LogEntry(db.Model):
     user_agent = db.Column(db.String(255))
     referrer = db.Column(db.String(2083))
 
+# Path to the CSV file and last processed line file
+CSV_FILE_PATH = 'ServerLogAnalysis/data/csv/server_logs.csv'
+LAST_LINE_FILE_PATH = 'last_line.txt'
+
+def get_last_processed_line():
+    """Reads the last processed line from a file."""
+    if os.path.exists(LAST_LINE_FILE_PATH):
+        with open(LAST_LINE_FILE_PATH, 'r') as file:
+            return int(file.read().strip())
+    return 0
+
+def save_last_processed_line(line_number):
+    """Saves the last processed line to a file."""
+    with open(LAST_LINE_FILE_PATH, 'w') as file:
+        file.write(str(line_number))
+
 # Load data from CSV and populate the database (run this once to populate the database)
 def populate_db():
+    """Reads new data from the CSV file and adds it to the database."""
+    last_processed_line = get_last_processed_line()
+    current_line = 0
+    new_data_found = False
+
+    # Load the CSV into a pandas DataFrame
     df = pd.read_csv('ServerLogAnalysis/data/csv/server_logs.csv')
     df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%d/%b/%Y:%H:%M:%S %z')
 
     print("CSV loaded. Number of rows:", len(df))
 
     for index, row in df.iterrows():
-        print(f"Processing row {index + 1}/{len(df)}")
-        log_entry = LogEntry(
-            timestamp=row['Timestamp'],
-            ip_address=row['IP Address'],
-            request_method=row['Request Method'],
-            request_path=row['Request Path'],
-            response_code=row['Status Code'],
-            user_agent=row.get('User Agent'),
-            referrer=row.get('Referrer')
-        )
-        db.session.add(log_entry)
-    db.session.commit()
-    print("Database populated.")
+        current_line = index + 1  # Line number starts at 1
+
+        # Skip lines that have already been processed
+        if current_line <= last_processed_line:
+            continue
+
+        print(f"Processing row {current_line}/{len(df)}")
+        
+        try:
+            # Create a new LogEntry object
+            log_entry = LogEntry(
+                timestamp=row['Timestamp'],
+                ip_address=row['IP Address'],
+                request_method=row['Request Method'],
+                request_path=row['Request Path'],
+                response_code=row['Status Code'],
+                user_agent=row.get('User Agent'),
+                referrer=row.get('Referrer')
+            )
+            # Add the new entry to the database
+            db.session.add(log_entry)
+            new_data_found = True
+        except Exception as e:
+            print(f"Error processing row {current_line}: {e}")
+
+    # Commit the changes if new data was found
+    if new_data_found:
+        db.session.commit()
+        save_last_processed_line(current_line)
+        print(f"Successfully added new data from line {last_processed_line + 1} to {current_line}")
+    else:
+        print("No new data found to add to the database.")
 
 # User loader callback for Flask-Login
 @login_manager.user_loader
@@ -642,7 +683,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         # Uncomment the following line if you need to populate the database
-        #populate_db()
+        populate_db()
         # Create an admin user if it doesn't exist
         if User.query.filter_by(username='ak').first() is None:
             admin_user = User(username='ak')
@@ -652,8 +693,8 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 # Handle any exceptions during commit
-try:
-    db.session.commit()
-except Exception as e:
-    db.session.rollback()
-    print(f"Error occurred during commit: {e}")
+#try:
+#    db.session.commit()
+#except Exception as e:
+#    db.session.rollback()
+#    print(f"Error occurred during commit: {e}")

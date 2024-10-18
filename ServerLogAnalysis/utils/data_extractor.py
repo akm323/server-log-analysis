@@ -3,6 +3,7 @@ import re
 import os
 import SetEnv
 
+#def main():
 # Set the current directory
 parent_dir = SetEnv.set_path()
 
@@ -59,3 +60,8 @@ with open(csv_file,  'r') as file:
     csv_contents = file.read()
 
 print(csv_contents)
+
+
+# Run the data extraction if this file is executed as a script
+#if __name__ == '__main__':
+#    main()
