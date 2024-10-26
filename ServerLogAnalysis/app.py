@@ -72,9 +72,8 @@ def save_last_processed_line(line_number):
 # Notify the front-end about new data
 def notify_new_data():
     """Notify the front-end about new data in the background."""
-    socketio.start_background_task(lambda: socketio.emit('new_data', {'message': 'New data available'}, namespace='/'))
+    socketio.emit('new_data', namespace='/')  # Send the event with the 'new_data' event
     app.logger.info("New data notification sent to front-end.")
-
 
 def populate_db():
     """Populate the database with new data from CSV."""
