@@ -415,6 +415,22 @@
         document.getElementById('request_path').addEventListener('change', updateGraph);
         window.onload = updateGraph;
     </script>
+    
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script type="text/javascript">
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+        
+        socket.on('new_data', function(data) {
+            alert(data.message);  // Display a notification or handle it as needed
+            fetchNewData();  // Call a function to update the dashboard
+        });
+
+        function fetchNewData() {
+            // Optionally, use AJAX to fetch new data dynamically from the server
+            location.reload();  // For now, just reload the page to get updated data
+        }
+    </script>
+
 </body>
 
 </html>

@@ -2,71 +2,108 @@ import pandas as pd
 import re
 import os
 import sys
+import time
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
-# Append parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
 from utils import SetEnv
 
-def main():
-    # Set the current directory
-    parent_dir = SetEnv.set_path()
+LAST_LINE_FILE_PATH = 'data_extractor_last_line.txt'
 
-    # Specify the path to the log file relative to the parent directory
-    log_file_path = os.path.join(parent_dir, 'data/raw/server_logs.txt')
+def get_last_extracted_line():
+    """Reads the last processed line for data extraction."""
+    if os.path.exists(LAST_LINE_FILE_PATH):
+        with open(LAST_LINE_FILE_PATH, 'r') as file:
+            return int(file.read().strip())
+    return 0
 
-    # Read the log file
-    with open(log_file_path, 'r') as file:
-        logs = file.readlines()
+def save_last_extracted_line(line_number):
+    """Saves the last processed line for data extraction."""
+    with open(LAST_LINE_FILE_PATH, 'w') as file:
+        file.write(str(line_number))
 
-    # Initialize lists to store parsed data
-    ip_addresses = []
-    timestamps = []
-    request_methods = []
-    request_paths = []
-    status_codes = []
-    user_agents = []
+class LogFileHandler(FileSystemEventHandler):
+    def __init__(self, log_file_path, csv_file):
+        self.log_file_path = log_file_path
+        self.csv_file = csv_file
+        self.last_position = get_last_extracted_line()  # Use last line number instead of position
+        self.process_initial_data()
 
     # Regular expression pattern to match the log format
-    pattern = r'(?P<ip>[\d\.]+) - - \[(?P<timestamp>.*?)\] "(?P<method>.*?) (?P<path>.*?) .*?" (?P<status>\d+) .*?"(' \
-            r'?P<user_agent>.*?)" '
+    pattern = re.compile(r'(?P<ip>[\d\.]+) - - \[(?P<timestamp>.*?)\] "(?P<method>.*?) (?P<path>.*?) .*?" (?P<status>\d+) .*?"(?P<user_agent>.*?)" ')
 
-    # Iterate over each log entry and extract information
-    for log in logs:
-        match = re.match(pattern, log)
-        if match:
-            ip_addresses.append(match.group('ip'))
-            timestamps.append(match.group('timestamp'))
-            request_methods.append(match.group('method'))
-            request_paths.append(match.group('path'))
-            status_codes.append(match.group('status'))
-            user_agents.append(match.group('user_agent'))
+    def process_initial_data(self):
+        """Initial processing of the log file to CSV."""
+        if os.path.exists(self.log_file_path):
+            with open(self.log_file_path, 'r') as file:
+                logs = file.readlines()
+                self.last_position = len(logs)  # Set last processed line number
 
-    # Create a DataFrame
-    data = {
-        'IP Address': ip_addresses,
-        'Timestamp': timestamps,
-        'Request Method': request_methods,
-        'Request Path': request_paths,
-        'Status Code': status_codes,
-        'User Agent': user_agents
-    }
-    df = pd.DataFrame(data)
+            data = self.parse_logs(logs)
+            df = pd.DataFrame(data)
+            df.to_csv(self.csv_file, mode='w', index=False)  # Write initial data to the CSV
 
-    # Specify the path to save the CSV file relative to the parent directory
-    data_dir = os.path.join(parent_dir, 'data/csv')
-    csv_file = os.path.join(data_dir, 'server_logs.csv')
+    def parse_logs(self, logs):
+        """Parse log entries from raw logs."""
+        ip_addresses, timestamps, request_methods, request_paths, status_codes, user_agents = [], [], [], [], [], []
 
-    # Save the DataFrame to a CSV file
-    df.to_csv(csv_file, index=False)
+        for log in logs:
+            match = self.pattern.match(log)
+            if match:
+                ip_addresses.append(match.group('ip'))
+                timestamps.append(match.group('timestamp'))
+                request_methods.append(match.group('method'))
+                request_paths.append(match.group('path'))
+                status_codes.append(match.group('status'))
+                user_agents.append(match.group('user_agent'))
 
-    # Display the CSV file contents
-    with open(csv_file,  'r') as file:
-        csv_contents = file.read()
+        data = {
+            'IP Address': ip_addresses,
+            'Timestamp': timestamps,
+            'Request Method': request_methods,
+            'Request Path': request_paths,
+            'Status Code': status_codes,
+            'User Agent': user_agents
+        }
+        return data
 
-    print(csv_contents)
+    def append_new_data(self):
+        """Append new log entries to the CSV."""
+        with open(self.log_file_path, 'r') as file:
+            new_logs = file.readlines()[self.last_position:]  # Only new lines
+            self.last_position += len(new_logs)  # Update last position
 
+        if new_logs:
+            data = self.parse_logs(new_logs)
+            if data['IP Address']:  # Check if there are any new valid logs
+                df = pd.DataFrame(data)
+                df.to_csv(self.csv_file, mode='a', header=False, index=False)  # Append new data to the CSV
+                save_last_extracted_line(self.last_position)
 
-# Run the data extraction if this file is executed as a script
+    def on_modified(self, event):
+        """Handle log file modification."""
+        if event.src_path == self.log_file_path:
+            self.append_new_data()
+
+def main():
+    parent_dir = SetEnv.set_path()
+    log_file_path = os.path.join(parent_dir, 'data/raw/server_logs.txt')
+    csv_file = os.path.join(parent_dir, 'data/csv/server_logs.csv')
+
+    event_handler = LogFileHandler(log_file_path, csv_file)
+    observer = Observer()
+    observer.schedule(event_handler, path=os.path.dirname(log_file_path), recursive=False)
+    observer.start()
+
+    try:
+        while True:
+            time.sleep(1)  # Keep the program running to monitor the log file
+            event_handler.append_new_data()  # Check for changes manually
+    except KeyboardInterrupt:
+        observer.stop()
+
+    observer.join()
+
 if __name__ == '__main__':
     main()

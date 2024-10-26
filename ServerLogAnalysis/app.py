@@ -11,12 +11,19 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from user_agents import parse
 from dotenv import load_dotenv
 from flask_login import current_user
+import time
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from flask_socketio import SocketIO
+import threading
 
 load_dotenv()
 app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = os.getenv("SECRET_KEY")  # Replace with a secure secret key
 db = SQLAlchemy(app)
+# Initialize Flask-SocketIO
+socketio = SocketIO(app)
 
 # Set up Flask-Login
 login_manager = LoginManager()
@@ -62,30 +69,32 @@ def save_last_processed_line(line_number):
     with open(LAST_LINE_FILE_PATH, 'w') as file:
         file.write(str(line_number))
 
-# Load data from CSV and populate the database (run this once to populate the database)
+# Notify the front-end about new data
+def notify_new_data():
+    """Notify the front-end about new data in the background."""
+    socketio.start_background_task(lambda: socketio.emit('new_data', {'message': 'New data available'}, namespace='/'))
+    app.logger.info("New data notification sent to front-end.")
+
+
 def populate_db():
-    """Reads new data from the CSV file and adds it to the database."""
+    """Populate the database with new data from CSV."""
     last_processed_line = get_last_processed_line()
     current_line = 0
     new_data_found = False
 
-    # Load the CSV into a pandas DataFrame
-    df = pd.read_csv('ServerLogAnalysis/data/csv/server_logs.csv')
+    df = pd.read_csv(CSV_FILE_PATH)
     df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%d/%b/%Y:%H:%M:%S %z')
 
-    print("CSV loaded. Number of rows:", len(df))
-
     for index, row in df.iterrows():
-        current_line = index + 1  # Line number starts at 1
+        current_line = index + 1
 
-        # Skip lines that have already been processed
         if current_line <= last_processed_line:
             continue
 
-        print(f"Processing row {current_line}/{len(df)}")
-        
+        print(f"Processing new row {current_line}: {row}")
+
+        # Try adding entry to the database
         try:
-            # Create a new LogEntry object
             log_entry = LogEntry(
                 timestamp=row['Timestamp'],
                 ip_address=row['IP Address'],
@@ -95,19 +104,46 @@ def populate_db():
                 user_agent=row.get('User Agent'),
                 referrer=row.get('Referrer')
             )
-            # Add the new entry to the database
             db.session.add(log_entry)
             new_data_found = True
         except Exception as e:
-            print(f"Error processing row {current_line}: {e}")
+            app.logger.error(f"Error processing row {current_line}: {e}")
 
-    # Commit the changes if new data was found
     if new_data_found:
         db.session.commit()
         save_last_processed_line(current_line)
-        print(f"Successfully added new data from line {last_processed_line + 1} to {current_line}")
+        notify_new_data()
+        app.logger.info(f"New data added from line {last_processed_line + 1} to {current_line}.")
     else:
-        print("No new data found to add to the database.")
+        app.logger.info("No new data found to add to the database.")
+
+
+# Watchdog event handler to monitor the CSV file for changes
+class CSVFileHandler(FileSystemEventHandler):
+    def __init__(self, csv_file_path):
+        self.csv_file_path = csv_file_path
+
+    def on_modified(self, event):
+        if event.src_path == self.csv_file_path:
+            app.logger.info("CSV file modified. Populating the database with new data...")
+            populate_db()
+
+def start_csv_monitoring():
+    """Monitors the CSV file for changes and updates the database automatically."""
+    event_handler = CSVFileHandler(CSV_FILE_PATH)
+    observer = Observer()
+    observer.schedule(event_handler, path=os.path.dirname(CSV_FILE_PATH), recursive=False)
+    observer.start()
+
+    try:
+        while True:
+            time.sleep(1)  # Keep the program running to monitor changes
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+
+# Start CSV monitoring in a background thread
+threading.Thread(target=start_csv_monitoring, daemon=True).start()
 
 # User loader callback for Flask-Login
 @login_manager.user_loader
@@ -682,6 +718,7 @@ def change_password():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        start_csv_monitoring()
         # Uncomment the following line if you need to populate the database
         populate_db()
         # Create an admin user if it doesn't exist
