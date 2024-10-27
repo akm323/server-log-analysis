@@ -72,7 +72,23 @@ def save_last_processed_line(line_number):
 # Notify the front-end about new data
 def notify_new_data():
     """Notify the front-end about new data in the background."""
-    socketio.emit('new_data', namespace='/')  # Send the event with the 'new_data' event
+    # Query the latest entries (customize the limit as needed)
+    new_data = LogEntry.query.order_by(LogEntry.timestamp.desc()).limit(10).all()
+
+    # Convert data to a dictionary format for JSON serialization
+    new_data_list = [
+        {
+            "timestamp": entry.timestamp,
+            "ip_address": entry.ip_address,
+            "request_method": entry.request_method,
+            "request_path": entry.request_path,
+            "response_code": entry.response_code,
+            "user_agent": entry.user_agent,
+            "referrer": entry.referrer
+        } for entry in new_data
+    ]
+    # Emit the new data to all connected clients on a 'new_data' event
+    socketio.emit('new_data', new_data_list, namespace='/', broadcast=True)  # Send the event with the 'new_data' event
     app.logger.info("New data notification sent to front-end.")
 
 def populate_db():
@@ -311,7 +327,7 @@ def index():
     ip_addresses = db.session.query(LogEntry.ip_address).distinct().all()
     ip_addresses = [ip[0] for ip in ip_addresses]  # Flattening the result
 
-     # Summary statistics
+    # Summary statistics
     total_requests = db.session.query(db.func.count(LogEntry.id)).scalar()
     unique_ips = db.session.query(db.func.count(db.distinct(LogEntry.ip_address))).scalar()
     status_code_counts = db.session.query(LogEntry.response_code, db.func.count(LogEntry.response_code)).group_by(LogEntry.response_code).all()
@@ -367,7 +383,7 @@ def track_ip():
                 hoverinfo="text+y"
             )],
             layout=go.Layout(
-                title=f'Number of Requests for Different Paths/Resources (Filtered by IP: {ip_address})',
+                title=f'Number of Requests for Different Paths/Resources',
                 xaxis=dict(title='Request Path'),
                 yaxis=dict(title='Count')
             )
@@ -387,10 +403,10 @@ def track_ip():
 
             # Create the line plot for requests over time
             fig_time = px.line(requests_over_time_grouped, x='Timestamp', y='Number of Requests', 
-                               title=f'Requests Over Time (Filtered by IP: {ip_address})')
+                               title=f'Requests Over Time')
         else:
             # If no data, return an empty plot
-            fig_time = px.line(title=f'Requests Over Time (Filtered by IP: {ip_address})')
+            fig_time = px.line(title=f'Requests Over Time')
         
         # Query for status code counts filtered by the selected IP
         status_code_counts = db.session.query(
@@ -406,7 +422,7 @@ def track_ip():
                 status_code_df, 
                 values='Count', 
                 names='Status Code', 
-                title=f'Status Codes (Filtered by IP: {ip_address})',
+                title=f'Status Codes',
                 labels={'Status Code': 'Status Code', 'Count': 'Frequency'}
             )
             # Customize the layout and add interactivity
@@ -422,7 +438,7 @@ def track_ip():
             )
         else:
             # If no data, return an empty pie chart
-            fig_status = px.pie(title=f'Status Codes (Filtered by IP: {ip_address})')
+            fig_status = px.pie(title=f'Status Codes')
 
         user_agents = db.session.query(
             LogEntry.user_agent
@@ -443,7 +459,7 @@ def track_ip():
         device_counts_df.columns = ['Device', 'Count']
 
         # Create a Plotly bar chart for device distribution
-        fig_device = px.bar(device_counts_df, x='Device', y='Count', title=f'Device Distribution (Filtered by IP: {ip_address})')
+        fig_device = px.bar(device_counts_df, x='Device', y='Count', title=f'Device Distribution')
 
 
 
@@ -500,7 +516,7 @@ def track_url():
                 hoverinfo="text+y"
             )],
             layout=go.Layout(
-                title=f'Number of Requests for Different IPs (Filtered by URL: {request_path})',
+                title=f'Number of Requests for Different IPs',
                 xaxis=dict(title='IP Address'),
                 yaxis=dict(title='Count')
             )
@@ -520,7 +536,7 @@ def track_url():
 
             # Create the line plot for requests over time
             fig_time = px.line(requests_over_time_grouped, x='Timestamp', y='Number of Requests', 
-                               title=f'Requests Over Time (Filtered by URL: {request_path})')
+                               title=f'Requests Over Time')
         else:
             # If no data, return an empty plot
             fig_time = go.Figure()
@@ -530,7 +546,7 @@ def track_url():
                 showarrow=False,
                 font=dict(size=14)
             )
-            fig_time.update_layout(title=f'Requests Over Time (Filtered by URL: {request_path})')
+            fig_time.update_layout(title=f'Requests Over Time')
         
         # Query for status code counts filtered by the selected URL
         status_code_counts = db.session.query(
@@ -546,7 +562,7 @@ def track_url():
                 status_code_df, 
                 values='Count', 
                 names='Status Code', 
-                title=f'Status Codes (Filtered by URL: {request_path})',
+                title=f'Status Codes',
                 labels={'Status Code': 'Status Code', 'Count': 'Frequency'}
             )
             fig_status.update_traces(
@@ -567,7 +583,7 @@ def track_url():
                 showarrow=False,
                 font=dict(size=14)
             )
-            fig_status.update_layout(title=f'Status Codes (Filtered by URL: {request_path})')
+            fig_status.update_layout(title=f'Status Codes')
             
         # Query for user agent data filtered by the selected URL
         user_agents = db.session.query(
@@ -583,7 +599,7 @@ def track_url():
         device_counts_df.columns = ['Device', 'Count']
 
         # Create a Plotly bar chart for device distribution
-        fig_device = px.bar(device_counts_df, x='Device', y='Count', title=f'Device Distribution (Filtered by URL: {request_path})')
+        fig_device = px.bar(device_counts_df, x='Device', y='Count', title=f'Device Distribution')
 
         # Convert Plotly figures to JSON
         graph_requests_json = pio.to_json(fig_requests)

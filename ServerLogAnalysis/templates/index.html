@@ -59,7 +59,8 @@
         .app-bar .nav {
             margin-top: 15px;
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .app-bar .nav a {
@@ -256,7 +257,7 @@
         }
 
         .right-menu {
-            margin-left: 1400px; /* Moves the account icon to the right */
+            margin-left: auto; /* Moves the account icon to the right */
         }
         
     </style>
@@ -473,18 +474,37 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
-    <script type="text/javascript">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    <script>
+        // Initialize Socket.IO client
         var socket = io.connect('http://' + document.domain + ':' + location.port);
         
-        socket.on('new_data', function(data) {
-            alert(data.message);  // Display a notification or handle it as needed
-            fetchNewData();  // Call a function to update the dashboard
+        // Listen for the 'new_data' event
+        socket.on('new_data', function(newData) {
+            console.log("New data received:", newData);
+            updateDashboard(newData);
         });
 
-        function fetchNewData() {
-            // Optionally, use AJAX to fetch new data dynamically from the server
-            location.reload();  // For now, just reload the page to get updated data
+        // Function to update the dashboard with new data
+        function updateDashboard(newData) {
+            const dashboard = document.getElementById("dashboard");
+            dashboard.innerHTML = ""; // Clear current content
+
+            // Render new data into the dashboard
+            newData.forEach(entry => {
+                const entryDiv = document.createElement("div");
+                entryDiv.innerHTML = `
+                    <p>Timestamp: ${entry.timestamp}</p>
+                    <p>IP Address: ${entry.ip_address}</p>
+                    <p>Request Method: ${entry.request_method}</p>
+                    <p>Request Path: ${entry.request_path}</p>
+                    <p>Response Code: ${entry.response_code}</p>
+                    <p>User Agent: ${entry.user_agent}</p>
+                    <p>Referrer: ${entry.referrer}</p>
+                    <hr>
+                `;
+                dashboard.appendChild(entryDiv);
+            });
         }
     </script>
 
