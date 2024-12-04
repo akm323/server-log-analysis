@@ -167,7 +167,6 @@ def load_user(user_id):
 
 @app.route('/get_new_data')
 def get_new_data():
-    # Your logic for fetching new data
     return "New data fetched!"
 
 # Login route
@@ -709,12 +708,12 @@ def change_password():
 
         # Step 1: Verify if the old password is correct
         if not user.check_password(old_password):  # Use check_password method
-            flash('Old password is incorrect', 'error')
+            flash('Old password is incorrect', 'change_error')
             return redirect(url_for('change_password'))
 
         # Step 2: Check if new password and confirm password match
         if new_password != confirm_new_password:
-            flash('New passwords do not match', 'error')
+            flash('New passwords do not match', 'change_error')
             return redirect(url_for('change_password'))
 
         # Step 3: Update the password in the database
@@ -743,10 +742,3 @@ if __name__ == '__main__':
             db.session.add(admin_user)
             db.session.commit()
     app.run(debug=True)
-
-# Handle any exceptions during commit
-#try:
-#    db.session.commit()
-#except Exception as e:
-#    db.session.rollback()
-#    print(f"Error occurred during commit: {e}")
