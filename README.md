@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Server-log-analysis
 Server log management is a critical task for organizations relying on web services, but it often presents challenges such as processing large volumes of data, identifying performance bottlenecks, and detecting security threats. Traditional approaches may be inefficient, lacking real-time updates or actionable insights. The proposed system addresses these issues by providing a real-time, web based solution for analyzing and visualizing server log data. Built using Flask, SQLAlchemy, 
 Pandas, and Plotly, the system streamlines log analysis through intuitive dashboards and advanced visualizations. It identifies key metrics such as frequent IPs, request patterns, status code distributions, and device, allowing administrators to monitor server activity effectively. This system empowers users to quickly detect anomalies, optimize server performance, and enhance security by uncovering patterns and irregularities in the data. With user-friendly interfaces, it ensures that administrators have immediate access to critical insights, facilitating prompt and informed decision-making. By resolving the inefficiencies of traditional log 
@@ -214,4 +213,3 @@ The system automatically:
 - Updates the database with new data
 - Refreshes visualizations in real-time
 - Maintains data integrity and consistency
->>>>>>> ec6618f (edited README.md)
